@@ -43,11 +43,17 @@ After the ansible playbooks has run, if any changes are found it will create a b
 
 **A note on what Netbox is responsible for in my demo:**
 
-I have not focused on getting Netbox to provide all the configuration details such as BGP, VXLAN, EVPN config. I have only focused on letting Netbox handle adding/removing devices, configure/add/remove interfaces, add/remove VLANs (including SVIs) and AVD will take care of the rest. There is ofcourse nothing stopping you to make Netbox handle everything if you want. 
+I have not focused on getting Netbox to provide all the configuration details such as BGP, VXLAN, EVPN config (full data model in Netbox). I have only focused on letting Netbox handle adding/removing devices, configure/add/remove interfaces, add/remove VLANs (including SVIs) and AVD will take care of the rest. There is ofcourse nothing stopping you to make Netbox handle everything if you want. 
 
 
 
 ## Webhook receiver tasks explained
+
+As Gitea dont have or had this capability I decided to just run a simple python script that triggered certain actions when it received hooks from Netbox. These actions involves running 4 playbooks and a python script that reads the changes from Netbox. Below is a short description of what the responsibilities of the different playbooks do.
+
+- 1-playbook-update_inventory-dev-prod.yml
+
+ 
 
 ## The scripts explained
 
