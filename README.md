@@ -81,9 +81,15 @@ In Gitea I have defined to workflow files under .gitea/workflows.
 
 - run_ansible_build.yaml
 
-This workflow is triggered 
+This workflow is triggered when there is created a branch. This will use my custom Gitea runner and will run the AVD ansible-playbook dev-build.yml to generate new config and documentation in that branch. Then it will run the AVD ansible-playbook dev-deploy.yml to push the config to the dev devices. It will also run the AVD playbook dev-anta.yml to run ANTA tests in the dev environments. The last AVD playbook dev-avd_cv_workflow.yml is run to reflect the changes in CloudVision (I have added my dev environment in CloudVision too).  Last tasks are updating the repo with the changes done from the playbooks above as they are executed from within the runner. 
 
+Read the workflow for more details.
 
+- run_ansible_build_deploy-cvp.yaml
+
+This workflow is triggered as soon as something is merged into main. It will run the AVD playbook to generate documentaton and configurations for the prod environment. It will also update Netbox with a status of created on the vlan that has been created in Netbox. Then it will run the role cv_workflow role to deploy the config to Cloudvision while printing the Change Control ID that is being created in Cloudvision. This ID will be used by the script cv_monitor.py to subscribe to events from this CC job. As I have added this CC job as a manual step its been configured to do some retries before timing out. A note on this, the CC job being created should be automatically approved as it has already been validated in Git, but for demo purposes I have chosen to go for a manual step here. Yes, I know it breaks the automation. Even if I approve this automatically, Cloudvision will prevent if from running if Cloudvision find something it dont really like (not warning bit error in the config) The reason I fetch this CC id is because this is needed for my ANTA task that is supposed to only start if this CC job completes successfully. If the job completes successfully it will also Netbox to Applied. 
+
+Read the workflow for more details.
 
 ## Gitea runner
 
