@@ -97,3 +97,9 @@ If you dont want to create your own docker image for this purpose you can probab
 
 "registry.guzware.net/avd/avd-5.7:v2"
 
+
+
+## Summary
+
+As I write initially, there are many ways to Rome, or many ways to automate or buld a ci pipeline. I have chosen this approach to showcase that AVD can interop with other tools, like Netbox, using either Ansible or Python. I have a mix of Python and Ansible where I have found it better to solve certain tasks with Python and others with Ansible. It may or may not give you an idea of whats possible. Hopefully it gives someone some inspiration to get started automating using AVD and ANTA in a CI pipeline and explore the many possibilities it will open up.
+
