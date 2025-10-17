@@ -8,11 +8,6 @@ on:
     paths:
       - 'group_vars/*'
 
-#  pull_request:
-#    branches:
-#      - 'main'  # Only trigger on PRs to `main`
-#    paths:
-#      - 'group_vars/*'
 
 jobs:
 
@@ -23,13 +18,6 @@ jobs:
       image: "registry.guzware.net/avd/avd-5.7:v2"
 
     steps:
-
-
-#      - name: Install Ansible
-#        run: pip install "pyavd[ansible]"
-
-#      - name: Install Arista AVD
-#        run: ansible-galaxy collection install arista.avd
 
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -79,7 +67,5 @@ jobs:
           git push origin $CURRENT_BRANCH
 
 
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.RUNNER_TOKEN }} 
 
 

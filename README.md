@@ -49,7 +49,7 @@ I have not focused on getting Netbox to provide all the configuration details su
 
 ## Webhook receiver tasks explained
 
-As Gitea dont have or had this capability I decided to just run a simple python script that triggered certain actions when it received hooks from Netbox. These actions involves running 4 playbooks and a python script that reads the changes from Netbox. Below is a short description of what the responsibilities of the different playbooks do.
+As Gitea dont have or had this capability I decided to just run a simple python script ("/webhook_server/sync_netbox_avd_cvaas.py") that triggered certain actions when it received hooks from Netbox. These actions involves running 4 playbooks and a python script that reads the changes from Netbox. Below is a short description of what the responsibilities of the different playbooks do.
 
 - 1-playbook-update_inventory-dev-prod.yml
 
@@ -59,15 +59,35 @@ The ansible playbook will call a python script (update_inventory.py) that does t
 
 The last task in the playbook it will also create a second and similar inventory.yml file called dev-inventory.yml for my dev-environment by replacing the content to reflect my dev inventory devices name, ip and fabric.
 
+- 2-playbook-update_dc1_yml_according_to_inventory.yml
 
+This playbook is the second playbook in the sequence and it responsiblity is to update the DC1.yml group_var file according to the actual device content. It is using the jinja template "update_dc1.j2". The DC1.yml file for the dev environment (DEV_DC1.yml) uses the dev-inventory.yml file to "generate" itself dynamically using jinja fields in the file itself. 
 
+- 3-playbook-update_network_services.yml
 
+This playbook is the third playbook in the sequence and its responsibility is to update the NETWORK_SERVICES.yml. This playbook will use ansible to fetch vlans, vrfs, interfaces matching certain criterias in Netbox (see playbook for more details) using Netbox's API. There is no need to have duplicate NETWORK_SERVICES.yml files to accomodate a dev and prod environment as they should be identical. It also uses the jinja template "network_services.j2"
 
-## The scripts explained
+- 4-playbook-update_connected_endpoints.yml
+
+This playbook is the fourth and last playbook in the sequence and its responsibility is to update the CONNECTED_ENDPOINTS.yml file. This playbook also uses ansible to fetch the needed information from Netbox using Netbox API. See playbook for more information. There is no need to have duplicate CONNECTED_ENDPOINTS.yml files to accomodate a dev and prod environment as they should be identical. This playbook uses the jinja template "connected_endpoints.j2".
+
+In addition to the above mentioned ansible playbooks the webhook script also perform actions like creating a branch if it detects any changes that indicates an update to any of the AVD related files above. When this branch has been committed and pushed it will trigger a workflow in my Gitea instance.  Read the webhook 
 
 
 
 ## Workflow tasks explained
 
+In Gitea I have defined to workflow files under .gitea/workflows. 
 
+- run_ansible_build.yaml
+
+This workflow is triggered 
+
+
+
+## Gitea runner
+
+If you dont want to create your own docker image for this purpose you can probably use mine hosted in my Docker registry:
+
+"registry.guzware.net/avd/avd-5.7:v2"
 

@@ -33,17 +33,13 @@ jobs:
           . /workspace/ansible-venv/bin/activate
           ansible-playbook -i inventory.yml build.yml
 
-      # --- NEW STEP 1: UPDATE NETBOX STATUS TO 'CREATED' ---
       - name: 'Update NetBox Status to Created and Extract VLAN ID'
         id: extract_vlan_id # Give the step an ID to reference its output
         run: |
           echo "DEBUG: Searching for VLAN DB_ID in new commits between ${{ gitea.event.before }} and ${{ gitea.event.after }}"
           
-          # Use the 'before' and 'after' SHAs from the push event to create a precise search range.
-          # This ensures we only look at the commits from THIS push.
           COMMIT_MESSAGES=$(git log ${{ gitea.event.before }}..${{ gitea.event.after }} --pretty=%B)
           
-          # Search those specific messages for our ID pattern
           VLAN_DB_ID=$(echo "$COMMIT_MESSAGES" | grep -oP '\(DB_ID: \K\d+(?=\))' | head -n 1)
           
           echo "vlan_id=$VLAN_DB_ID" >> $GITHUB_OUTPUT
@@ -84,23 +80,12 @@ jobs:
           git push origin $CURRENT_BRANCH
 
 
-# This was working before adding anta and poll script
-#      - name: Deploy changes to CloudVision
-#        run: |
-#          . /workspace/ansible-venv/bin/activate 
-#          ansible-playbook -i inventory.yml avd_cv_workflow.yml
-
-# This is a new updated section to get ANTA running in Prod
       - name: Deploy changes to CloudVision and get Change Control Name
         id: deploy_cv
         run: |
           . /workspace/ansible-venv/bin/activate
-          # Run the playbook and capture output for parsing
-          # The Ansible `debug` module will print to stdout
           ANSIBLE_STDOUT_CALLBACK=default ansible-playbook -i inventory.yml avd_cv_workflow.yml > ansible-cv-output.txt
           cat ansible-cv-output.txt
-          # Extract the change control name using grep and sed
-          # The regex captures the string after "Change Control Name:" and before " | ID:"
           CC_NAME=$(grep "Change Control Name:" ansible-cv-output.txt | sed 's/.*Change Control Name: \(.*\) | ID:.*/\1/')
           
           if [[ -z "$CC_NAME" ]]; then
@@ -125,11 +110,8 @@ jobs:
             git add status/latest_cvaas_cc_job.name
             git commit -s -m "Update CVAAS Change Control Job Name" || echo "No status file changes to commit"
  
-            # Ensure we pull before we push to avoid conflicts
-            # Use main as the first push used CURRENT_BRANCH (which is main)
             git pull --rebase origin main
              
-            # Push changes to main
             git push origin main
           else
             echo "Status file not found. Skipping commit."
@@ -144,7 +126,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Add this new step to pull the latest changes from the first job
       - name: Sync with Remote Main Branch
         run: |
           git pull origin main
@@ -154,11 +135,10 @@ jobs:
           . /workspace/ansible-venv/bin/activate
           python scripts/cv_monitor.py
         env:
-          CVP_SERVER: 'www.cv-staging.corp.arista.io' # Or use a Gitea secret: ${{ secrets.CVP_SERVER }}
-          CVP_TOKEN: 'eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJkaWQiOjQyOTc4NzE4MDQsImRzbiI6ImFuZHJlYXNfYXZkIiwiZHN0IjoiYWNjb3VudCIsImV4cCI6MTkwMzU1NzU5OSwiaWF0IjoxNzQ3MzkwODE4LCJvZ2kiOjkwODE1LCJvZ24iOiJhcmlzdGEtc2Utbm9yZGljIiwic2lkIjoiZDZhNzZhZmIyYTk2ZDExNjUyMWQxYWYyNmE3ZTFhMzBjNTgyMTFmMzJjNWNmMmFlZWI3YWUxZjcxN2NkOTQ5Ny1VdHFpRzdNN2ZVcVNnSXhfc3BLOTZldnVnSWlaYjhpYnhKZUZlYXFMIn0.ZsVOGt4gtDCzvHYPbdmm1pJ06XIOoy5xOfnk-qYuum6CtO8rm79SF6ATJsvJTvbviAkoZyZ7OfNnBQTx5tlFpg' # Or use a Gitea secret: ${{ secrets.CVP_TOKEN }}
+          CVP_SERVER: 'URL' # Or use a Gitea secret: ${{ secrets.CVP_SERVER }}
+          CVP_TOKEN: '' # Or use a Gitea secret: ${{ secrets.CVP_TOKEN }}
           CHANGE_CONTROL_NAME: ${{ needs.run-avd-build_prod_push_cvaas.outputs.change_control_name }}
 
-      # --- NEW STEP 2: UPDATE NETBOX STATUS TO 'APPLIED' ---
       - name: 'Update NetBox Status to Applied'
         id: update_status_applied
         run: |
@@ -182,7 +162,6 @@ jobs:
       - name: Commit and Push ANTA Report and Test Catalogs
         run: |
           # The ANTA playbook created the files in the previous step.
-          # First, add and commit those files.
           git config user.name "gitea-runner"
           git config user.email "andreas.marqvardsen@gmail.com"
           git add ./reports
@@ -193,6 +172,5 @@ jobs:
           # This must be done AFTER the files are committed, otherwise it will fail.
           git pull --rebase origin main
 
-          # Finally, push your changes to the remote
           git push origin main
 
