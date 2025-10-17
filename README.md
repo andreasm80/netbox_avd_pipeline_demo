@@ -2,7 +2,7 @@
 
 This repository contains the scripts, jinja templates, ansible playbooks and Netbox plugins I use in my CI pipeline demo showcasing Netbox and Arista Architect Validate Deploy working together.
 
-This is not, by far, intended as a best practice approach, nor an offical approach from Arista. This is my own creation to just showcase how AVD and ANTA can be used as powerful tools in a CI pipeline in combination with tools such as Netbox, Git and Arista Cloudvision.
+This is not, by far, intended as a best practice approach, nor an offical approach from Arista. This is my own creation to just showcase how AVD and ANTA can be used as powerful tools in a CI pipeline in combination with tools such as Netbox, Git and Arista Cloudvision. I have also tried to keep the examples (group_var files etc) provided by AVD as "out-of-the-box" as possible from the AVD repo and keeping AVD as "unmodified" as possible to make it simpler to maintain and upgrade when new versions of AVD is released without adding too many "custom" scripts and playbooks that I need to revise if something is deprecated down the path. 
 
 There are many ways to achieve such integrations and approaches which also cover much more details and logics. This is just my take on it to maybe inspire or getting the tought process started. 
 
@@ -53,7 +53,15 @@ As Gitea dont have or had this capability I decided to just run a simple python 
 
 - 1-playbook-update_inventory-dev-prod.yml
 
- 
+This playbook is the first playbook that is being triggered and its responsibiliy is to update the AVD inventory.yml file from the actual content it fetches from Netbox. If I add a device in Netbox, it will update the inventory.yml to accommodate that. I decided that this approach will always keep the inventory.yml true to what is the actual devices in my Netbox. It will always be re-written if it detects a change, if no change is detected it will skip it.
+
+The ansible playbook will call a python script (update_inventory.py) that does the fetching from Netbox using certain criterias. See the script for more details. The update_inventory.py script also generates the inventory.yml using the jinja template "inventory.yml.j2". 
+
+The last task in the playbook it will also create a second and similar inventory.yml file called dev-inventory.yml for my dev-environment by replacing the content to reflect my dev inventory devices name, ip and fabric.
+
+
+
+
 
 ## The scripts explained
 
