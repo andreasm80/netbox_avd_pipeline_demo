@@ -1,0 +1,18 @@
+---
+# Definition of connected endpoints in the fabric.
+servers:
+{% for server in servers %}
+  - name: {{ server.name }}
+    adapters:
+{% for adapter in server.adapters %}
+      - endpoint_ports: {{ adapter.endpoint_ports | to_json }}
+        switch_ports: {{ adapter.switch_ports | to_json }}
+        switches: {{ adapter.switches | to_json }}
+        vlans: "{{ adapter.vlans }}"
+        mode: {{ adapter.mode }}
+{% if adapter.native_vlan is defined and adapter.native_vlan != '' %}
+        native_vlan: {{ adapter.native_vlan }}
+{% endif %}
+{% endfor %}
+{% endfor %}
+

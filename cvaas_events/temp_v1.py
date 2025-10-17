@@ -1,0 +1,89 @@
+import argparse
+import grpc
+import json
+import arista.changecontrol.v1
+from google.protobuf.json_format import Parse
+
+RPC_TIMEOUT = 600  # 10 minutes, or set to None for no timeout
+
+def main(args):
+    # Read the file containing a session token to authenticate with
+    token = args.token_file.read().strip()
+    print(f"Token: {token[:10]}...")  # Print first 10 chars for safety
+
+    # If using a self-signed certificate
+    if args.cert_file:
+        cert = args.cert_file.read()
+        channelCreds = grpc.ssl_channel_credentials(root_certificates=cert)
+    else:
+        channelCreds = grpc.ssl_channel_credentials()
+    connCreds = grpc.composite_channel_credentials(channelCreds, grpc.access_token_call_credentials(token))
+
+    # Filter for device ID and optionally status
+    json_request = json.dumps({
+        "filter": {
+            "deviceIds": {
+                "values": ["9AAEE15EEB3A18FADDA20C1BACDB76F8"]
+            }
+        }
+        # Optional: Add status filter if needed
+        # "partialEqFilter": [
+        #     {
+        #         "status": "CHANGE_CONTROL_STATUS_COMPLETED"
+        #     }
+        # ]
+    })
+    print(f"Subscription request: {json_request}")
+    req = Parse(json_request, arista.changecontrol.v1.services.ChangeControlStreamRequest(), False)
+
+    # Initialize connection and subscribe
+    print(f"Connecting to server: {args.server}")
+    with grpc.secure_channel(args.server, connCreds) as channel:
+        tag_stub = arista.changecontrol.v1.services.ChangeControlServiceStub(channel)
+        print("Starting subscription...")
+        stream = tag_stub.Subscribe(req, timeout=RPC_TIMEOUT)
+        try:
+            for response in stream:
+                print(f"Received event: {response}")
+            print("Stream ended normally")
+        except grpc.RpcError as e:
+            print(f"gRPC error: {e}")
+            if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+                print("Stream closed due to timeout")
+        except KeyboardInterrupt:
+            print("Subscription interrupted by user")
+            stream.cancel()
+
+        # Test GetAll to inspect historical events
+        print("\nTesting GetAll request...")
+        get_all_req = Parse(json.dumps({
+            "filter": {
+                "deviceIds": {
+                    "values": ["9AAEE15EEB3A18FADDA20C1BACDB76F8"]
+                }
+            }
+        }), arista.changecontrol.v1.services.ChangeControlGetAllRequest())
+        try:
+            for response in tag_stub.GetAll(get_all_req, timeout=RPC_TIMEOUT):
+                print(f"GetAll response: {response}")
+        except grpc.RpcError as e:
+            print(f"GetAll gRPC error: {e}")
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        '--server',
+        required=True,
+        help="CloudVision server to connect to in <host>:<port> format")
+    parser.add_argument(
+        "--token-file",
+        required=True,
+        type=argparse.FileType('r'),
+        help="file with access token")
+    parser.add_argument(
+        "--cert-file",
+        type=argparse.FileType('rb'),
+        help="certificate to use as root CA")
+    args = parser.parse_args()
+    main(args)

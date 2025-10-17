@@ -1,0 +1,28 @@
+---
+- name: Update DC1.yml based on inventory.yml
+  hosts: localhost
+  gather_facts: no
+  vars:
+    inventory_file: "inventory.yml"
+    dc1_file: "group_vars/DC1.yml"
+    
+  tasks:
+    - name: Read inventory.yml
+      ansible.builtin.slurp:
+        src: "{{ inventory_file }}"
+      register: inventory_content
+
+    - name: Read existing DC1.yml
+      ansible.builtin.slurp:
+        src: "{{ dc1_file }}"
+      register: dc1_content
+
+    - name: Process inventory and update DC1 configuration
+      ansible.builtin.template:
+        src: templates/update_dc1.j2
+        dest: "{{ dc1_file }}"
+        mode: '0644'
+        backup: no
+      vars:
+        inventory_data: "{{ inventory_content.content | b64decode | from_yaml }}"
+        current_dc1: "{{ dc1_content.content | b64decode | from_yaml }}"

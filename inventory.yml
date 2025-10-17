@@ -1,0 +1,57 @@
+---
+all:
+  children:
+    CLOUDVISION:
+      hosts:
+        cvaas:
+          ansible_host: 'URL'
+          ansible_user: 'cvaas'
+          ansible_password: ''
+          ansible_connection: httpapi
+          ansible_network_os: eos
+          ansible_httpapi_port: 443
+          ansible_httpapi_use_ssl: true
+          ansible_httpapi_validate_certs: false
+          ansible_httpapi_host: 'www.cv-staging.corp.arista.io'
+          ansible_python_interpreter: $(which python3)
+    ANDREAS_FABRIC:
+      children:
+        DC1:
+          vars:
+            mgmt_gateway: 172.18.100.2
+          children:
+            DC1_SPINES:
+              hosts:
+                andreas-dc1-spine1:
+                  ansible_host: 172.18.100.111
+                andreas-dc1-spine2:
+                  ansible_host: 172.18.100.112
+            DC1_L3_LEAVES:
+              hosts:
+                andreas-dc1-leaf1a:
+                  ansible_host: 172.18.100.113
+                andreas-dc1-leaf1b:
+                  ansible_host: 172.18.100.114
+                andreas-dc1-leaf2a:
+                  ansible_host: 172.18.100.115
+                andreas-dc1-leaf2b:
+                  ansible_host: 172.18.100.116
+                andreas-dc1-leaf3a:
+                  ansible_host: 172.18.100.117
+                andreas-dc1-leaf3b:
+                  ansible_host: 172.18.100.118
+            DC1_L2_LEAVES:
+              hosts:
+                andreas-dc1-leaf1c:
+                  ansible_host: 172.18.100.119
+                andreas-dc1-leaf2c:
+                  ansible_host: 172.18.100.120
+
+    NETWORK_SERVICES:
+      children:
+        DC1_L3_LEAVES:
+        DC1_L2_LEAVES:
+    CONNECTED_ENDPOINTS:
+      children:
+        DC1_L3_LEAVES:
+        DC1_L2_LEAVES:

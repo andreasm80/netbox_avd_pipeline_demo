@@ -1,0 +1,125 @@
+---
+- name: Update CONNECTED_ENDPOINTS.yml from NetBox for dc1 site endpoints
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+    # Task 0: Load environment variables from netbox_env.sh
+    - name: Parse netbox_env.sh into environment variables
+      ansible.builtin.set_fact:
+        env_vars: "{{ parsed_env }}"
+      vars:
+        parsed_env: "{{ dict(lookup('file', playbook_dir + '/netbox_env.sh') | split('\n') | select('match', '.*=.*') | map('regex_replace', '^export\\s+([^=]+)=\"([^\"]+)\"$', '\\1=\\2') | map('split', '=') | list) }}"
+
+    # Task 1: Set environment for playbook
+    - name: Set environment for playbook
+      ansible.builtin.set_fact:
+        netbox_url: "{{ env_vars.NETBOX_URL }}/api"
+        netbox_token: "{{ env_vars.NETBOX_TOKEN }}"
+        netbox_cert: "{{ env_vars.NETBOX_CERT }}"
+        avd_group_vars_dir: "{{ playbook_dir }}/group_vars"
+        site_slug: "dc1"
+
+    # Task 2: Get all devices in the dc1 site
+    - name: Fetch devices from NetBox for site dc1
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/dcim/devices/?site={{ site_slug }}"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: "application/json"
+        validate_certs: yes
+        ca_path: "{{ netbox_cert }}"
+        return_content: yes
+      register: netbox_devices
+
+    # Task 3: Fetch interfaces with tag "endpoint" for all devices
+    - name: Fetch interfaces with tag "endpoint" for all devices
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/dcim/interfaces/?device={{ item.name }}&tag=endpoint"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: "application/json"
+        validate_certs: yes
+        ca_path: "{{ netbox_cert }}"
+        return_content: yes
+      loop: "{{ netbox_devices.json.results | default([]) }}"
+      register: netbox_interfaces_per_device
+      when: netbox_devices.json.results is defined and netbox_devices.json.results | length > 0
+      no_log: true
+
+    # Task 4: Collect all adapter data
+    - name: Collect adapter data from interfaces
+      ansible.builtin.set_fact:
+        raw_adapters: "{{ raw_adapters | default([]) + [adapter_data] }}"
+      loop: "{{ netbox_interfaces_per_device.results | map(attribute='json') | map(attribute='results') | flatten }}"
+      loop_control:
+        loop_var: interface
+      when:
+        - interface.tags | selectattr('slug', 'equalto', 'endpoint') | list | length > 0
+        - interface.description is search('SERVER_')
+      vars:
+        vlan_list: "{{ interface.tagged_vlans | map(attribute='vid') | list }}"
+        vlan_string: "{{ vlan_list | join(',') }}"
+        port_number: "{{ raw_adapters | default([]) | selectattr('name', 'equalto', (interface.description | regex_replace('SERVER_(.*)_.*', '\\1'))) | length + 1 }}"
+        adapter_data:
+          name: "{{ interface.description }}"
+          merge_group: "{{ 'merged' if interface.tags | selectattr('slug', 'equalto', 'merged') | list | length > 0 else interface.id }}"
+          endpoint_port: "PCI{{ port_number }}"
+          switch_port: "{{ interface.name }}"
+          switch: "{{ interface.device.name }}"
+          vlans: "{{ vlan_string if vlan_string else interface.untagged_vlan.vid | default('') }}"
+          mode: "{{ 'trunk' if interface.tagged_vlans else 'access' }}"
+          native_vlan: "{{ interface.untagged_vlan.vid | default('') if interface.tagged_vlans and interface.untagged_vlan else '' }}"
+
+    # Debug collected raw adapters
+    - name: Debug raw adapters
+      ansible.builtin.debug:
+        var: raw_adapters
+
+    # Task 5: Group and merge adapters
+    - name: Group and merge adapters
+      ansible.builtin.set_fact:
+        endpoint_dict: "{{ endpoint_dict | default({}) | combine({ item.0: {'adapters': grouped_adapters, 'name': item.1[0].name} }) }}"
+      loop: "{{ raw_adapters | default([]) | groupby('merge_group') }}"
+      vars:
+        grouped_adapters:
+          - endpoint_ports: "{{ item.1 | map(attribute='endpoint_port') | list }}"
+            switch_ports: "{{ item.1 | map(attribute='switch_port') | list }}"
+            switches: "{{ item.1 | map(attribute='switch') | list }}"
+            vlans: "{{ item.1[0].vlans }}"
+            mode: "{{ item.1[0].mode }}"
+            native_vlan: "{{ item.1[0].native_vlan | default(omit) }}"
+
+
+    # Debug grouped adapters
+    - name: Debug grouped adapters
+      ansible.builtin.debug:
+        var: endpoint_dict
+
+    # Task 6: Convert aggregated data to list
+    - name: Convert aggregated data to list
+      ansible.builtin.set_fact:
+        new_endpoints: "{{ endpoint_dict | dict2items | map(attribute='value') | list }}"
+
+
+    # Debug transformed endpoint list
+    - name: Debug transformed endpoint list
+      ansible.builtin.debug:
+        var: new_endpoints
+
+    # Task 7: Render CONNECTED_ENDPOINTS.yml with NetBox data
+    - name: Render CONNECTED_ENDPOINTS.yml with NetBox data
+      ansible.builtin.template:
+        src: "templates/connected_endpoints.j2"
+        dest: "{{ avd_group_vars_dir }}/CONNECTED_ENDPOINTS.yml"
+        mode: '0644'
+      vars:
+        servers: "{{ new_endpoints | default([]) }}"
+
+    # Task 8: Validate the YAML syntax
+    - name: Validate updated YAML
+      ansible.builtin.command: "yamllint {{ avd_group_vars_dir }}/CONNECTED_ENDPOINTS.yml"
+      register: yaml_validation
+      failed_when: yaml_validation.rc != 0 and 'error' in yaml_validation.stdout and 'empty-lines' not in yaml_validation.stdout

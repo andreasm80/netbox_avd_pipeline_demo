@@ -1,0 +1,75 @@
+---
+- name: Configuration deployment CV Workflow
+  hosts: ANDREAS_FABRIC
+  connection: local
+  gather_facts: false
+  vars:
+    cv_server: 'URL'
+    cv_token: ''
+    configuration_dir: "{{ playbook_dir }}/intended/configs"
+    structured_config_dir: "{{ playbook_dir }}/intended/structured_configs"
+  tasks:
+#    - name: generate intentended variables
+#      tags: [build]
+#      import_role:
+#        name: arista.avd.eos.designs
+
+#    - name: generate device intended config and documentation
+#      tags: [build]
+#      import_role:
+#        name: arista.avd.eos.cli_config_gen
+
+    - name: generate random string
+      set_fact:
+        r: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=4') }}"
+      run_once: true
+
+    - name: set facts
+      set_fact:
+        ws_name: andreas-prod-static-studio-{{ r }}
+        ws_description: Andreas Production Change from AVD
+        ws_req_state: submitted
+        ws_force: true
+        cc_name: Andreas_Prod_Change-{{ r}}
+        cc_requested_state: "pending approval"
+        cc_description: Andreas CC Prod Change
+      run_once: true
+
+    - name: "Andreas Prod - Provision CVaaS with AVD Configs"
+      run_once: true
+      delegate_to: localhost
+      arista.avd.cv_workflow:
+        configlet_name_template: "Andreas-AVD-${hostname}"
+        configuration_dir: "{{ configuration_dir }}"
+        structured_config_dir: "{{ structured_config_dir }}"
+        device_list: "{{ ansible_play_hosts }}"
+        #device_list: ["andreas-dc1-spine1", "andreas-dc1-spine2", "andreas-dc1-leaf1a"]
+        strict_tags: true
+        cv_servers: [ '{{ cv_server }}' ]
+        cv_token: '{{ cv_token }}'
+        cv_verify_certs: true
+        skip_missing_devices: true
+        workspace:
+          name: '{{ ws_name }}'
+          description: '{{ ws_description }}'
+          id: '{{ ws_name }}'
+          requested_state: '{{ ws_req_state }}'
+          force: '{{ ws_force }}'
+        change_control:
+          name: '{{ cc_name }}'
+          description: '{{ cc_description }}'
+          requested_state: '{{ cc_requested_state }}'
+        return_details: true
+      register: CVP_RESULTS
+
+#    - name: 'Display CVP Results'
+#      run_once: true
+#      debug:
+#        msg: '{{CVP_RESULTS}}'
+
+    - name: 'Display Change Control Details'
+      run_once: true
+      debug:
+        msg: "Change Control Name: {{ CVP_RESULTS.change_control.name }} | ID: {{ CVP_RESULTS.change_control.id }}"
+
+

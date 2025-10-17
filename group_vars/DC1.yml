@@ -1,0 +1,100 @@
+---
+mgmt_interface: Management0
+mgmt_interface_description: oob_management
+
+spine:
+  defaults:
+    platform: cEOS-lab
+    loopback_ipv4_pool: 10.255.0.0/27
+    bgp_as: 65100
+  nodes:  
+    - name: andreas-dc1-spine1
+      id: 1
+      mgmt_ip: "{{ ansible_host }}/24"  
+    - name: andreas-dc1-spine2
+      id: 2
+      mgmt_ip: "{{ ansible_host }}/24"
+l3leaf:
+  defaults:
+    platform: cEOS-lab
+    loopback_ipv4_pool: 10.255.0.0/27
+    loopback_ipv4_offset: 2
+    vtep_loopback_ipv4_pool: 10.255.1.0/27
+    uplink_interfaces: ['Ethernet1', 'Ethernet2']
+    uplink_switches: ['andreas-dc1-spine1', 'andreas-dc1-spine2']
+    uplink_ipv4_pool: 10.255.255.0/26
+    mlag_peer_ipv4_pool: 10.255.1.64/27
+    mlag_peer_l3_ipv4_pool: 10.255.1.96/27
+    virtual_router_mac_address: 00:1c:73:00:00:99
+    spanning_tree_priority: 4096
+    spanning_tree_mode: mstp
+  node_groups:
+    - group: DC1_L3_LEAF1
+      bgp_as: 65101
+      nodes:
+        - name: andreas-dc1-leaf1a
+          id: 1
+          mgmt_ip: "{{ ansible_host }}/24"
+          uplink_switch_interfaces:
+            - Ethernet1
+            - Ethernet1
+        - name: andreas-dc1-leaf1b
+          id: 2
+          mgmt_ip: "{{ ansible_host }}/24"
+          uplink_switch_interfaces:
+            - Ethernet2
+            - Ethernet2
+    - group: DC1_L3_LEAF2
+      bgp_as: 65102
+      nodes:
+        - name: andreas-dc1-leaf2a
+          id: 3
+          mgmt_ip: "{{ ansible_host }}/24"
+          uplink_switch_interfaces:
+            - Ethernet3
+            - Ethernet3
+        - name: andreas-dc1-leaf2b
+          id: 4
+          mgmt_ip: "{{ ansible_host }}/24"
+          uplink_switch_interfaces:
+            - Ethernet4
+            - Ethernet4
+    - group: DC1_L3_LEAF3
+      bgp_as: 65103
+      nodes:
+        - name: andreas-dc1-leaf3a
+          id: 5
+          mgmt_ip: "{{ ansible_host }}/24"
+          uplink_switch_interfaces:
+            - Ethernet5
+            - Ethernet5
+        - name: andreas-dc1-leaf3b
+          id: 6
+          mgmt_ip: "{{ ansible_host }}/24"
+          uplink_switch_interfaces:
+            - Ethernet6
+            - Ethernet6
+l2leaf:
+  defaults:
+    platform: cEOS-lab
+    spanning_tree_mode: mstp
+  node_groups:
+    - group: DC1_L2_LEAF1
+      uplink_switches: ['andreas-dc1-leaf1a', 'andreas-dc1-leaf1b']
+      nodes:
+        - name: andreas-dc1-leaf1c
+          id: 1
+          mgmt_ip: "{{ ansible_host }}/24"
+          uplink_switch_interfaces:
+            - Ethernet6
+            - Ethernet6
+    - group: DC1_L2_LEAF2
+      uplink_switches: ['andreas-dc1-leaf2a', 'andreas-dc1-leaf2b']
+      nodes:
+        - name: andreas-dc1-leaf2c
+          id: 2
+          mgmt_ip: "{{ ansible_host }}/24"
+          uplink_switch_interfaces:
+            - Ethernet6
+            - Ethernet6
+

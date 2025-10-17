@@ -1,0 +1,57 @@
+---
+all:
+  children:
+    CLOUDVISION:
+      hosts:
+        cvaas:
+          ansible_host: ''
+          ansible_user: 'cvaas'
+          ansible_password: ''
+          ansible_connection: httpapi
+          ansible_network_os: eos
+          ansible_httpapi_port: 443
+          ansible_httpapi_use_ssl: true
+          ansible_httpapi_validate_certs: false
+          ansible_httpapi_host: ''
+          ansible_python_interpreter: $(which python3)
+    ANDREAS_DEV_FABRIC:
+      children:
+        DEV_DC1:
+          vars:
+            mgmt_gateway: 172.18.101.2
+          children:
+            DEV_DC1_SPINES:
+              hosts:
+                andreas-dev-dc1-spine1:
+                  ansible_host: 172.18.101.111
+                andreas-dev-dc1-spine2:
+                  ansible_host: 172.18.101.112
+            DEV_DC1_L3_LEAVES:
+              hosts:
+                andreas-dev-dc1-leaf1a:
+                  ansible_host: 172.18.101.113
+                andreas-dev-dc1-leaf1b:
+                  ansible_host: 172.18.101.114
+                andreas-dev-dc1-leaf2a:
+                  ansible_host: 172.18.101.115
+                andreas-dev-dc1-leaf2b:
+                  ansible_host: 172.18.101.116
+                andreas-dev-dc1-leaf3a:
+                  ansible_host: 172.18.101.117
+                andreas-dev-dc1-leaf3b:
+                  ansible_host: 172.18.101.118
+            DEV_DC1_L2_LEAVES:
+              hosts:
+                andreas-dev-dc1-leaf1c:
+                  ansible_host: 172.18.101.119
+                andreas-dev-dc1-leaf2c:
+                  ansible_host: 172.18.101.120
+
+    NETWORK_SERVICES:
+      children:
+        DEV_DC1_L3_LEAVES:
+        DEV_DC1_L2_LEAVES:
+    CONNECTED_ENDPOINTS:
+      children:
+        DEV_DC1_L3_LEAVES:
+        DEV_DC1_L2_LEAVES:

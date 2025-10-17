@@ -1,0 +1,85 @@
+name: 'CI Runner ansible build - all except main'
+
+on:
+  push:
+    branches:
+      - '*'
+      - '!main' 
+    paths:
+      - 'group_vars/*'
+
+#  pull_request:
+#    branches:
+#      - 'main'  # Only trigger on PRs to `main`
+#    paths:
+#      - 'group_vars/*'
+
+jobs:
+
+  run-avd-build:
+    runs-on: ubuntu-latest
+#    if: github.ref != 'refs/heads/main'
+    container: 
+      image: "registry.guzware.net/avd/avd-5.7:v2"
+
+    steps:
+
+
+#      - name: Install Ansible
+#        run: pip install "pyavd[ansible]"
+
+#      - name: Install Arista AVD
+#        run: ansible-galaxy collection install arista.avd
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build Dev Configurations and Documentation
+        run: |
+          . /workspace/ansible-venv/bin/activate 
+          ansible-playbook -i dev-inventory.yml dev-build.yml
+
+      - name: Deploy to Dev digital-twin
+        run: |
+          . /workspace/ansible-venv/bin/activate
+          ansible-playbook -i dev-inventory.yml dev-deploy.yml
+
+      - name: Run Automated Network Testing in Dev
+        run: |
+          . /workspace/ansible-venv/bin/activate
+          ansible-playbook -i dev-inventory.yml dev-anta.yml
+
+      - name: Reflect changes to CVP - tasks and change control
+        run: |
+          . /workspace/ansible-venv/bin/activate
+          ansible-playbook -i dev-inventory.yml dev-avd_cv_workflow.yml
+
+      - name: Commit and Push Generated Files
+        run: |
+          # Make sure any generated files are added to Git
+          if [ -d "documentation" ]; then
+            git add dev_documentation/
+          fi
+
+          if [ -d "intended" ]; then
+            git add dev_intended/
+          fi
+
+          if [ -d "reports" ]; then
+            git add dev_reports/
+          fi
+
+          git config user.name "gitea-runner"
+          git config user.email "andreas.marqvardsen@gmail.com"
+          # Get the current branch name dynamically
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          git commit -s -m "Update generated files from branch $CURRENT_BRANCH" || echo "No changes to commit"
+
+          # Push changes to the current branch
+          git push origin $CURRENT_BRANCH
+
+
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.RUNNER_TOKEN }} 
+
+

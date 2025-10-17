@@ -1,0 +1,34 @@
+---
+# Definition of connected endpoints in the fabric.
+servers:
+  - name: SERVER_dc1-leaf2-server1_PCI1
+    adapters:
+      - endpoint_ports: ["PCI1"]
+        switch_ports: ["Ethernet5"]
+        switches: ["andreas-dc1-leaf2a"]
+        vlans: "11"
+        mode: trunk
+        native_vlan: 3402
+  - name: SERVER_leaf3a-sw01-u1_u1-vrf10
+    adapters:
+      - endpoint_ports: ["PCI1"]
+        switch_ports: ["Ethernet5"]
+        switches: ["andreas-dc1-leaf3a"]
+        vlans: "352"
+        mode: trunk
+  - name: SERVER_leaf3b-sw01-u2_u2-vrf11
+    adapters:
+      - endpoint_ports: ["PCI1"]
+        switch_ports: ["Ethernet5"]
+        switches: ["andreas-dc1-leaf3b"]
+        vlans: "352"
+        mode: trunk
+  - name: SERVER_dc1-leaf1-server1-nlogic_PCI1
+    adapters:
+      - endpoint_ports: ["PCI1", "PCI1"]
+        switch_ports: ["Ethernet5", "Ethernet5"]
+        switches: ["andreas-dc1-leaf1a", "andreas-dc1-leaf1b"]
+        vlans: "11,12,21,22"
+        mode: trunk
+        native_vlan: 4094
+

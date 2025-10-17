@@ -1,0 +1,45 @@
+---
+- name: Update AVD Inventory from NetBox
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Ensure required Python packages are installed
+      pip:
+        name:
+          - requests
+          - jinja2
+          - PyYAML
+        state: present
+
+    - name: Source environment file and run inventory update script
+      shell: |
+        . {{ playbook_dir }}/netbox_env.sh && python3 {{ playbook_dir }}/scripts/update_inventory.py
+      args:
+        chdir: "{{ playbook_dir }}"
+      environment:
+        PATH: "{{ ansible_env.PATH }}"
+      register: script_result
+      changed_when: script_result.rc == 1
+      failed_when: script_result.rc not in [0, 1]
+
+    - name: Read inventory.yml content
+      slurp:
+        src: "{{ playbook_dir }}/inventory.yml"
+      register: inventory_content
+      when: script_result.rc in [0, 1]
+
+    - name: Update subnet, prepend dev- to ceos devices, and rename keys
+      copy:
+        dest: "{{ playbook_dir }}/dev-inventory.yml"
+        content: |
+          {{ (inventory_content.content | b64decode)
+            | regex_replace('172.18.100.', '172.18.101.')
+            | regex_replace('ANDREAS_FABRIC:', 'ANDREAS_DEV_FABRIC:')
+            | regex_replace('DC1:', 'DEV_DC1:')
+            | regex_replace('DC1_SPINES:', 'DEV_DC1_SPINES:')
+            | regex_replace('DC1_L3_LEAVES:', 'DEV_DC1_L3_LEAVES:')
+            | regex_replace('DC1_L2_LEAVES:', 'DEV_DC1_L2_LEAVES:')
+            | regex_replace('andreas-', 'andreas-dev-')
+          }}
+        force: yes
+      when: script_result.rc in [0, 1]

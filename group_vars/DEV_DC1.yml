@@ -1,0 +1,110 @@
+---
+mgmt_interface: Management0
+mgmt_interface_description: oob_management
+
+spine:
+  defaults:
+    platform: cEOS-lab
+    loopback_ipv4_pool: 10.255.0.0/27
+    bgp_as: 65100
+  nodes: |
+    [
+      {% if inventory_hostname == groups['DEV_DC1_SPINES'][0] %}
+      {
+        "name": "{{ inventory_hostname }}",
+        "id": 1,
+        "mgmt_ip": "{{ ansible_host }}/24"
+      }
+      {% elif inventory_hostname == groups['DEV_DC1_SPINES'][1] %}
+      {
+        "name": "{{ inventory_hostname }}",
+        "id": 2,
+        "mgmt_ip": "{{ ansible_host }}/24"
+      }
+      {% endif %}
+    ]
+
+l3leaf:
+  defaults:
+    platform: cEOS-lab
+    loopback_ipv4_pool: 10.255.0.0/27
+    loopback_ipv4_offset: 2
+    vtep_loopback_ipv4_pool: 10.255.1.0/27
+    uplink_interfaces: ['Ethernet1', 'Ethernet2']
+    uplink_switches: "{{ groups['DEV_DC1_SPINES'] }}"
+    uplink_ipv4_pool: 10.255.255.0/26
+    mlag_peer_ipv4_pool: 10.255.1.64/27
+    mlag_peer_l3_ipv4_pool: 10.255.1.96/27
+    virtual_router_mac_address: 00:1c:73:00:00:99
+    spanning_tree_priority: 4096
+    spanning_tree_mode: mstp
+  node_groups:
+    - group: DEV_DC1_L3_LEAF1
+      bgp_as: 65101
+      nodes:
+        - name: "{{ groups['DEV_DC1_L3_LEAVES'][0] }}"
+          id: "{{ 1 if inventory_hostname == groups['DEV_DC1_L3_LEAVES'][0] else 2 }}"
+          mgmt_ip: "{{ hostvars[groups['DEV_DC1_L3_LEAVES'][0]].ansible_host }}/24"
+          uplink_switch_interfaces: ["Ethernet1", "Ethernet1"]
+        - name: "{{ groups['DEV_DC1_L3_LEAVES'][1] }}"
+          id: "{{ 2 if inventory_hostname == groups['DEV_DC1_L3_LEAVES'][1] else 1 }}"
+          mgmt_ip: "{{ hostvars[groups['DEV_DC1_L3_LEAVES'][1]].ansible_host }}/24"
+          uplink_switch_interfaces: ["Ethernet2", "Ethernet2"]
+    - group: DEV_DC1_L3_LEAF2
+      bgp_as: 65102
+      nodes:
+        - name: "{{ groups['DEV_DC1_L3_LEAVES'][2] }}"
+          id: "{{ 3 if inventory_hostname == groups['DEV_DC1_L3_LEAVES'][2] else 4 }}"
+          mgmt_ip: "{{ hostvars[groups['DEV_DC1_L3_LEAVES'][2]].ansible_host }}/24"
+          uplink_switch_interfaces: ["Ethernet3", "Ethernet3"]
+        - name: "{{ groups['DEV_DC1_L3_LEAVES'][3] }}"
+          id: "{{ 4 if inventory_hostname == groups['DEV_DC1_L3_LEAVES'][3] else 3 }}"
+          mgmt_ip: "{{ hostvars[groups['DEV_DC1_L3_LEAVES'][3]].ansible_host }}/24"
+          uplink_switch_interfaces: ["Ethernet4", "Ethernet4"]
+    - group: DEV_DC1_L3_LEAF3
+      bgp_as: 65103
+      nodes:
+        - name: "{{ groups['DEV_DC1_L3_LEAVES'][4] }}"
+          id: "{{ 5 if inventory_hostname == groups['DEV_DC1_L3_LEAVES'][4] else 6 }}"
+          mgmt_ip: "{{ hostvars[groups['DEV_DC1_L3_LEAVES'][4]].ansible_host }}/24"
+          uplink_switch_interfaces: ["Ethernet5", "Ethernet5"]
+        - name: "{{ groups['DEV_DC1_L3_LEAVES'][5] }}"
+          id: "{{ 6 if inventory_hostname == groups['DEV_DC1_L3_LEAVES'][5] else 5 }}"
+          mgmt_ip: "{{ hostvars[groups['DEV_DC1_L3_LEAVES'][5]].ansible_host }}/24"
+          uplink_switch_interfaces: ["Ethernet6", "Ethernet6"]
+
+l2leaf:
+  defaults:
+    platform: cEOS-lab
+    spanning_tree_mode: mstp
+  node_groups: |
+    [
+      {
+        "group": "DEV_DC1_L2_LEAF1",
+        "uplink_switches": {{ groups['DEV_DC1_L3_LEAVES'] | select('match', '.*(andreas-dc1-leaf1[ab]|andreas-dev-dc1-leaf1[ab])$') | list | to_json }},
+        "nodes": [
+          {% if inventory_hostname == groups['DEV_DC1_L2_LEAVES'][0] %}
+          {
+            "name": "{{ inventory_hostname }}",
+            "id": 1,
+            "mgmt_ip": "{{ ansible_host }}/24",
+            "uplink_switch_interfaces": ["Ethernet6", "Ethernet6"]
+          }
+          {% endif %}
+        ]
+      },
+      {
+        "group": "DEV_DC1_L2_LEAF2",
+        "uplink_switches": {{ groups['DEV_DC1_L3_LEAVES'] | select('match', '.*(andreas-dc1-leaf2[ab]|andreas-dev-dc1-leaf2[ab])$') | list | to_json }},
+        "nodes": [
+          {% if inventory_hostname == groups['DEV_DC1_L2_LEAVES'][1] %}
+          {
+            "name": "{{ inventory_hostname }}",
+            "id": 2,
+            "mgmt_ip": "{{ ansible_host }}/24",
+            "uplink_switch_interfaces": ["Ethernet6", "Ethernet6"]
+          }
+          {% endif %}
+        ]
+      }
+    ]

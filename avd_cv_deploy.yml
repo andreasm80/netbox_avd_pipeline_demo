@@ -1,0 +1,13 @@
+---
+- name: Configuration deployment
+  hosts: ANDREAS_FABRIC
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Deploy Prod configurations and tags to CloudVision
+      ansible.builtin.import_role:
+        name: arista.avd.cv_deploy
+      vars:
+        cv_server: 'URL'
+        cv_token: ''
+        state: absent

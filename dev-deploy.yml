@@ -1,0 +1,17 @@
+---
+# deploy.yml
+
+- name: Deploy Configurations to Devices using eAPI # (1)!
+  hosts: ANDREAS_DEV_FABRIC
+  gather_facts: false
+  tasks:
+
+    - name: Deploy Configurations to Devices # (2)!
+      ansible.builtin.import_role:
+        name: arista.avd.eos_config_deploy_eapi
+      vars:
+        output_dir: ./dev_intended
+        structured_config_dir: "{{ output_dir }}/structured_configs"
+        eos_config_dir_name: 'configs'
+        eos_config_dir: '{{ output_dir }}/{{ eos_config_dir_name }}'
+

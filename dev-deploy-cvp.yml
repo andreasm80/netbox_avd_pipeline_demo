@@ -1,0 +1,27 @@
+---
+- name: Deploy Configurations to Devices Using CloudVision Portal # (1)!
+  hosts: CLOUDVISION
+  gather_facts: false
+  connection: local
+  tasks:
+
+    - name: Deploy Configurations to CloudVision # (2)!
+      ansible.builtin.import_role:
+        name: arista.avd.eos_config_deploy_cvp
+      vars:
+        cv_collection: v3 # (3)!
+        fabric_name: ANDREAS_DEV_FABRIC # (4)!
+        execute_tasks: true # (5)!
+        configlets_prefix: 'ANDREAS_DEV_DC1'
+        output_dir: './dev_intended'
+        output_dir_name: 'structured_configs'
+        structured_dir: '{{ output_dir }}/{{ structured_dir_name }}'
+        structured_cvp_dir_name: 'cvp'
+        structured_cvp_dir: '{{ structured_dir }}/{{ structured_cvp_dir_name }}'
+        eos_config_dir_name: 'configs'
+        eos_config_dir: '{{ output_dir }}/{{ eos_config_dir_name }}'
+
+#        intended_configs_dir: "./dev_intended/configs"
+#        configlets_dir: "./dev_intended/configs" # (6)!
+        container_root: 'ANDREAS_DEV_FABRIC'
+

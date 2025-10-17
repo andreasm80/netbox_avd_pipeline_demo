@@ -1,0 +1,26 @@
+---
+- name: validate states on EOS devices using ANTA
+  hosts: ANDREAS_DEV_FABRIC
+  gather_facts: false
+  tasks:
+    - name: validate states on EOS devices
+      ansible.builtin.import_role:
+        name: arista.avd.eos_validate_state
+      vars:
+        # To enable ANTA
+        use_anta: true
+        # To save catalogs
+        save_catalog: true
+        output_dir: './dev_intended'
+        test_catalogs_dir_name: "test_catalog"
+        test_catalogs_dir: "{{ output_dir }}/{{ test_catalogs_dir_name }}"
+        eos_validate_state_name: "dev_reports"
+        eos_validate_state_dir: "{{ root_dir }}/{{ eos_validate_state_name }}"
+        test_results_dir_name: "test_results"
+        eos_validate_state_md_report_path: "{{ eos_validate_state_dir }}/{{ fabric_name }}-state.md"
+        eos_validate_state_csv_report_path: "{{ eos_validate_state_dir }}/{{ fabric_name }}-state.csv"
+        structured_dir_name: "structured_configs"
+        structured_dir: "{{ output_dir }}/{{ structured_dir_name }}"
+        custom_anta_catalogs_dir_name: "dev_custom_anta_catalogs"
+        custom_anta_catalogs_dir: "{{ root_dir }}/{{ custom_anta_catalogs_dir_name }}"
+

@@ -1,0 +1,155 @@
+---
+- name: Sync L2 and L3 VLANs and SVIs from NetBox to AVD for site dc1
+  hosts: localhost
+  connection: local
+  vars:
+    output_file: "group_vars/NETWORK_SERVICES.yml"
+    template_file: "templates/network_services.j2"
+    env_file: "{{ playbook_dir }}/netbox_env.sh"
+    cert_file: "{{ playbook_dir }}/certs/netbox_cert.pem"
+  tasks:
+    - name: Check if netbox_env.sh exists
+      ansible.builtin.stat:
+        path: "{{ env_file }}"
+      register: env_file_stat
+      failed_when: not env_file_stat.stat.exists
+
+    - name: Check if netbox_cert.pem exists
+      ansible.builtin.stat:
+        path: "{{ cert_file }}"
+      register: cert_file_stat
+      failed_when: not cert_file_stat.stat.exists
+
+    - name: Source netbox_env.sh and set environment variables
+      ansible.builtin.shell: |
+        . {{ env_file }} && env
+      register: env_output
+      changed_when: false
+
+    - name: Parse environment variables from shell output
+      ansible.builtin.set_fact:
+        netbox_url: "{{ (env_output.stdout | regex_search('NETBOX_URL=(.+)', '\\1') | first) }}"
+        netbox_token: "{{ (env_output.stdout | regex_search('NETBOX_TOKEN=(.+)', '\\1') | first) }}"
+      changed_when: false
+
+    - name: Query L2 VLANs from NetBox for site dc1
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/api/ipam/vlans/?site=dc1&role=l2"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: "application/json"
+        validate_certs: no
+        return_content: yes
+      register: vlan_l2_response
+
+    - name: Set L2 VLAN list
+      ansible.builtin.set_fact:
+        vlan_list_raw_l2: "{{ vlan_l2_response.json.results | default([]) }}"
+
+    - name: Query L3 VLANs from NetBox for site dc1
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/api/ipam/vlans/?site=dc1&role=l3"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: "application/json"
+        validate_certs: no
+        return_content: yes
+      register: vlan_l3_response
+
+    - name: Set L3 VLAN list
+      ansible.builtin.set_fact:
+        vlan_list_raw_l3: "{{ vlan_l3_response.json.results | default([]) }}"
+
+    - name: Combine L2 and L3 VLAN lists
+      ansible.builtin.set_fact:
+        vlan_list: "{{ vlan_list_raw_l2 + vlan_list_raw_l3 }}"
+
+    - name: Query prefixes for all VLANs
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/api/ipam/prefixes/?vlan_id={{ item.id }}"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: "application/json"
+        validate_certs: no
+        return_content: yes
+      register: prefix_response
+      loop: "{{ vlan_list }}"
+      when: vlan_list | length > 0
+      no_log: true
+
+    - name: Extract prefix list from raw response
+      ansible.builtin.set_fact:
+        prefix_list: "{{ prefix_response.results | map(attribute='json.results') | flatten | reject('undefined') | list }}"
+
+    - name: Query all VRFs to get custom fields
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/api/ipam/vrfs/"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: "application/json"
+        validate_certs: no
+        return_content: yes
+      register: vrf_response
+
+    - name: Set VRF list
+      ansible.builtin.set_fact:
+        vrf_list: "{{ vrf_response.json.results | default([]) }}"
+
+    - name: Query all anycast IP addresses
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/api/ipam/ip-addresses/?role=anycast&limit=1000"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: "application/json"
+        validate_certs: no
+        return_content: yes
+        status_code: [200]
+      register: ip_response
+      failed_when: ip_response.status != 200
+
+    - name: Extract IP list from raw response
+      ansible.builtin.set_fact:
+        ip_list: "{{ ip_response.json.results | default([]) }}"
+
+    - name: Query l3leaf devices in site dc1
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/api/dcim/devices/?site=dc1&role=l3leaf"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: "application/json"
+        validate_certs: no
+        return_content: yes
+      register: device_response
+
+    - name: Set l3leaf device list
+      ansible.builtin.set_fact:
+        l3leaf_devices: "{{ device_response.json.results | default([]) }}"
+
+    - name: Query interfaces for l3leaf devices
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/api/dcim/interfaces/?device_id={{ item.id }}"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: "application/json"
+        validate_certs: no
+        return_content: yes
+      register: interface_response
+      loop: "{{ l3leaf_devices }}"
+      no_log: true  # Suppress item-by-item output
+
+    - name: Extract interface list from raw response
+      ansible.builtin.set_fact:
+        interface_list: "{{ interface_response.results | map(attribute='json.results') | flatten | reject('undefined') | list }}"
+
+    - name: Render and write updated NETWORK_SERVICES.yml
+      ansible.builtin.copy:
+        content: "{{ lookup('template', template_file, template_vars={'vlan_list': vlan_list, 'prefix_list': prefix_list, 'ip_list': ip_list, 'vrf_list': vrf_list, 'l3leaf_devices': l3leaf_devices, 'interface_list': interface_list}) }}"
+        dest: "{{ output_file }}"
+        backup: no

@@ -1,0 +1,88 @@
+---
+- name: Configuration deployment CV Workflow
+  hosts: ANDREAS_DEV_FABRIC
+  connection: local
+  gather_facts: false
+  vars:
+    cv_server: ''
+    cv_token: ''
+    configuration_dir: "{{ playbook_dir }}/dev_intended/configs"
+    structured_config_dir: "{{ playbook_dir }}/dev_intended/structured_configs"
+  tasks:
+#    - name: generate intentended variables
+#      tags: [build]
+#      import_role:
+#        name: arista.avd.eos.designs
+
+#    - name: generate device intended config and documentation
+#      tags: [build]
+#      import_role:
+#        name: arista.avd.eos.cli_config_gen
+
+    - name: generate random string
+      set_fact:
+        r: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=4') }}"
+      run_once: true
+
+    - name: set facts
+      set_fact:
+        ws_name: andreas-dev-static-studio-{{ r }}
+        ws_description: Andreas Dev Change from AVD
+        ws_req_state: submitted
+        ws_force: true
+        cc_name: Andreas_Dev_Change-{{ r}}
+        cc_requested_state: "completed"
+        cc_description: Andreas CC Dev Change
+      run_once: true
+
+    - name: "Andreas Dev - Provision CVaaS with AVD Configs"
+      run_once: true
+      delegate_to: localhost
+      arista.avd.cv_workflow:
+        device_list: "{{ ansible_play_hosts }}"
+        configlet_name_template: "Andreas-Dev-AVD-${hostname}"
+#        static_config_manifest:
+#          containers:
+#            - name: "Andreas-DEV-Fabric-Container"
+#              tag_query: "device:*"
+#              match_policy: "match_all"
+#              sub_containers:
+#                - name: "spines"
+#                  tag_query: "device_role:spine"
+#                  match_policy: "match_all"
+#             - name: "l3-leafs"
+#               tag_query: "device_role:l3-leaf"
+#               match_policy: "match_all"
+#             - name: "l2-leafs"
+#               tag_query: "device_role:l2-leaf"
+#               match_policy: "match_all"
+        configuration_dir: "{{ configuration_dir }}"
+        structured_config_dir: "{{ structured_config_dir }}"
+        #device_list: ["andreas-dc1-spine1", "andreas-dc1-spine2", "andreas-dc1-leaf1a"]
+        strict_tags: true
+        cv_servers: [ '{{ cv_server }}' ]
+        cv_token: '{{ cv_token }}'
+        cv_verify_certs: true
+        skip_missing_devices: true
+        workspace:
+          name: '{{ ws_name }}'
+          description: '{{ ws_description }}'
+          id: '{{ ws_name }}'
+          requested_state: '{{ ws_req_state }}'
+          force: '{{ ws_force }}'
+        change_control:
+          name: '{{ cc_name }}'
+          description: '{{ cc_description }}'
+          requested_state: '{{ cc_requested_state }}'
+        return_details: true
+      register: CVP_RESULTS
+
+#    - name: 'Display CVP Results'
+#      run_once: true
+#      debug:
+#        msg: '{{CVP_RESULTS}}'
+
+    - name: 'Display Change Control Details'
+      run_once: true
+      debug:
+        msg: "Change Control Name: {{ CVP_RESULTS.change_control.name }} | ID: {{ CVP_RESULTS.change_control.id }}"

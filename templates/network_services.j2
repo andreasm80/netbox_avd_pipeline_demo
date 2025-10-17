@@ -1,0 +1,47 @@
+---
+tenants:
+  - name: "TENANT1"
+    mac_vrf_vni_base: 10000
+    vrfs:
+{% set unique_vrfs = [] %}
+{% for prefix in prefix_list %}
+{% if prefix.vrf is defined and prefix.vrf.name not in unique_vrfs %}
+{% set vrf = vrf_list | selectattr('id', 'equalto', prefix.vrf.id) | first | default({'name': 'default', 'custom_fields': {'vrf_vni': 1}}) %}
+{% do unique_vrfs.append(vrf.name) %}
+      - name: {{ vrf.name }}
+        vrf_vni: {{ vrf.custom_fields.vrf_vni | default(vrf.id) }}
+        vtep_diagnostic:
+          loopback: {{ vrf.custom_fields.vrf_vni | default(vrf.id) }}
+          loopback_ip_range: 10.255.{{ vrf.custom_fields.vrf_vni | default(vrf.id) }}.0/27
+        svis:
+{% for vlan in vlan_list if vlan.role.name == 'L3' %}
+{% set matching_prefix = prefix_list | selectattr('vlan.id', 'equalto', vlan.id) | first | default({}) %}
+{% if matching_prefix.vrf is defined and matching_prefix.vrf.name == vrf.name %}
+{% set vlan_interfaces = interface_list | selectattr('name', 'match', 'Vlan' + vlan.vid|string) | list %}
+{% set vlan_anycast_ips = ip_list | selectattr('assigned_object_id', 'in', vlan_interfaces | map(attribute='id') | list) | selectattr('role.value', 'equalto', 'anycast') | list %}
+{% set devices_with_ip = vlan_anycast_ips | map(attribute='assigned_object.device.name') | unique | list %}
+{% set all_l3leaf_count = l3leaf_devices | length %}
+{% set devices_with_ip_count = devices_with_ip | length %}
+          - id: {{ vlan.vid }}
+            name: {{ vlan.name | default('VLAN_' ~ vlan.vid) }}
+            enabled: true
+{% if devices_with_ip_count == all_l3leaf_count and devices_with_ip_count > 0 %}
+            ip_address_virtual: {{ (vlan_anycast_ips | first).address }}
+{% elif devices_with_ip_count > 0 %}
+            nodes:
+{% for ip in vlan_anycast_ips %}
+{% if ip.assigned_object.device.name in l3leaf_devices | map(attribute='name') %}
+              - node: {{ ip.assigned_object.device.name }}
+                ip_address: {{ ip.address }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+    l2vlans:
+{% for vlan in vlan_list if vlan.role.name == 'L2' %}
+      - id: {{ vlan.vid }}
+        name: {{ vlan.name | default('VLAN_' ~ vlan.vid) }}
+{% endfor %}

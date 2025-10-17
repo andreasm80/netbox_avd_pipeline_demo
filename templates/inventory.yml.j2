@@ -1,0 +1,43 @@
+---
+all:
+  children:
+    CLOUDVISION:
+      hosts:
+        cvaas:
+          ansible_host: '{{ cvp_host }}'
+          ansible_user: '{{ cvp_user }}'
+          ansible_password: '{{ cvp_password }}'
+          ansible_connection: httpapi
+          ansible_network_os: eos
+          ansible_httpapi_port: 443
+          ansible_httpapi_use_ssl: true
+          ansible_httpapi_validate_certs: false
+          ansible_httpapi_host: '{{ cvp_host }}'
+          ansible_python_interpreter: $(which python3)
+    ANDREAS_FABRIC:
+      children:
+        DC1:
+          vars:
+            mgmt_gateway: 172.18.100.2
+          children:
+            DC1_SPINES:
+              hosts:{% for spine in spines %}
+                {{ spine.name }}:
+                  ansible_host: {{ spine.ip }}{% endfor %}
+            DC1_L3_LEAVES:
+              hosts:{% for leaf in l3_leaves %}
+                {{ leaf.name }}:
+                  ansible_host: {{ leaf.ip }}{% endfor %}
+            DC1_L2_LEAVES:
+              hosts:{% for leaf in l2_leaves %}
+                {{ leaf.name }}:
+                  ansible_host: {{ leaf.ip }}{% endfor %}
+
+    NETWORK_SERVICES:
+      children:
+        DC1_L3_LEAVES:
+        DC1_L2_LEAVES:
+    CONNECTED_ENDPOINTS:
+      children:
+        DC1_L3_LEAVES:
+        DC1_L2_LEAVES:

@@ -1,0 +1,19 @@
+---
+- name: Dev Configuration deployment
+  hosts: ANDREAS_DEV_FABRIC
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Deploy dev configurations and tags to CloudVision
+      ansible.builtin.import_role:
+        name: arista.avd.cv_deploy
+      vars:
+        cv_server: 'URL'
+        cv_token: ''
+        output_dir: './dev_intended'
+        output_dir_name: 'structured_configs'
+        structured_dir: '{{ output_dir }}/{{ structured_dir_name }}'
+        structured_cvp_dir_name: 'cvp'
+        structured_cvp_dir: '{{ structured_dir }}/{{ structured_cvp_dir_name }}'
+        eos_config_dir_name: 'configs'
+        eos_config_dir: '{{ output_dir }}/{{ eos_config_dir_name }}'
