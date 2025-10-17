@@ -36,7 +36,7 @@ A short overview of whats happening. I have configured Netbox with labels, tags 
 After the ansible playbooks has run, if any changes are found it will create a branch in my git repository. This will trigger a workflow in that branch which involves running AVD and ANTA to generate new documentation and configuration from the changes made in Netbox and ANTA to perform network testing. This first workflow is only concering my dev environment. All the output will be committed and pushed to the same branch. I can review the changes then decide to merge this to my main branch. As soon as I do a pull request to main my next workflow will start. This will again run AVD to create documentation and configuration from the same change but now to my production environment. Not directly to the devices themselves, but to Arista CloudVison. 
 
 
-
+![Pipeline Overview](image/pipeline_overview.png)
 
 
 
