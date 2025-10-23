@@ -1,0 +1,31 @@
+{% extends 'base/layout.html' %}
+{% load form_helpers %}
+
+{% block title %}
+Delete VLAN and Associated Objects
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 col-md-offset-2">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading"><i class="mdi mdi-alert"></i> Warning</h4>
+            <p>This action is permanent and cannot be undone. It will delete the VLAN, its associated Prefix (if specified), and any corresponding `Vlan{{ vlan_id }}` interfaces and anycast IPs from l3leaf devices in the dc1 site.</p>
+        </div>
+    </div>
+</div>
+<form method="post">
+    {% csrf_token %}
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>VLAN Deleter</strong></div>
+        <div class="panel-body">
+            {% render_form form %}
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12 text-right">
+            <button type="submit" name="_delete" class="btn btn-danger">Delete VLAN</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

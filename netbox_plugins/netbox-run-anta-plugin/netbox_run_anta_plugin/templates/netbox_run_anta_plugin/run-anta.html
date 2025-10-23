@@ -1,0 +1,52 @@
+{% extends 'base/layout.html' %}
+{% load static %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        {# First Card: The Trigger Button #}
+        <div class="card mb-4"> {# Added margin-bottom #}
+            <h5 class="card-header">ANTA Test Trigger</h5>
+            <div class="card-body">
+                <p>
+                    This page checks the status of the monitored job file.
+                </p>
+                <ul>
+                    <li>A <span class="text-success"><strong>green button</strong></span> indicates the file has not changed since the last time the test was triggered.</li>
+                    <li>A <span class="text-danger"><strong>red button</strong></span> indicates the file has been updated, and a new test is recommended.</li>
+                </ul>
+                <hr>
+                {% if api_error %}
+                    <div class="alert alert-danger" role="alert">
+                        <strong>API Error:</strong> Could not get status from remote server. Please check the plugin configuration and ensure the webhook server is running.
+                    </div>
+                {% else %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-{{ button_color }} btn-lg">
+                                <i class="mdi mdi-play-circle-outline"></i> Run ANTA Playbook
+                            </button>
+                        </div>
+                    </form>
+                    <div class="text-muted mt-3">
+                        <small>Current file hash: {{ current_hash }}</small><br>
+                        <small>Last triggered hash: {{ last_hash }}</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# NEW: Second Card for the Report Output #}
+        {% if html_report %}
+        <div class="card">
+            <h5 class="card-header">Latest ANTA Report</h5>
+            <div class="card-body">
+                {# The |safe filter is IMPORTANT. It tells Django to render our generated HTML. #}
+                {{ html_report|safe }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

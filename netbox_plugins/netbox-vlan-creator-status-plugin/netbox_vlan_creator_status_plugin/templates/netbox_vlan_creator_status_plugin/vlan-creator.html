@@ -1,0 +1,23 @@
+{% extends 'base/layout.html' %}
+{% load form_helpers %}
+
+{% block title %}
+Create VLAN and Interfaces
+{% endblock %}
+
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>VLAN and Interface Creator</strong></div>
+        <div class="panel-body">
+            {% render_form form %}
+        </div>
+    </div>
+    <div class="row">
+		<div class="col-md-12 text-right">
+			<button type="submit" name="_create" class="btn btn-primary">Create</button>
+		</div>
+	</div>
+</form>
+{% endblock %}
